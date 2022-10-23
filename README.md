@@ -81,7 +81,7 @@ This can be done using a registry key check or using the provided requirement sc
 
 Detection of the proofing tools can be done either with the provided detection script, customized for each LanguageID or by having a registry key check. 
 
-For more details and instructions go to [MSEndpointMgr Blog](https://msendpointmgr.com)
+For more details and instructions go to [MSEndpointMgr Blog](https://msendpointmgr.com/2022/10/23/installing-m365-apps-as-win32-app-in-intune/)
 
 
 
