@@ -5,6 +5,8 @@ Owner: JankeSkanke
 Date: 24/10/2022
 Description: Deploying M365 with Intune dynamically as a Win32App
 ---
+  [![HitCount](https://hits.dwyl.com/msendpointmgr/m365apps.svg?style=flat)](http://hits.dwyl.com/msendpointmgr/m365apps)
+
 # M365 Apps Intune scripted dynamic install using Office Deployment Toolkit 
 ## This solution covers installation of the following products 
 * [M365 Apps(Office)](#Main-Office-Package)
