@@ -101,5 +101,5 @@ Registry
 
 For more details and instructions go to [MSEndpointMgr Blog](https://msendpointmgr.com/2022/10/23/installing-m365-apps-as-win32-app-in-intune/)
 
-
+This solution has been developed by @JankeSkanke with assistance from @sandytsang and @maurice-daly
 
