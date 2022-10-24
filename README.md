@@ -65,6 +65,18 @@ Each product is made of the following components
 ```
 This configuration file example will match the language installed (M365 Apps). TargetProduct is required for that to work. Also this example will shutdown running Office Apps for end users during install. The follow step 2-4 from the main office package. 
 
+Project Install Command :
+
+```  
+powershell.exe -executionpolicy bypass -file InstallProject.ps1 
+```
+Visio Install Command:
+
+```  
+powershell.exe -executionpolicy bypass -file InstallVisio.ps1 
+```
+
+
 ### Proofing tools
 
 We recommend installing only 1 language on the computers unless your requirements are specific. But there might still be need for proofing tools for multiple languages. The main thinking here is to have all possible proofing tools in your environment as available to end user to install by their own choosing. 
@@ -73,15 +85,21 @@ For proofing tool the included configuration.xml files are just "templates" as t
 
 EXAMPLES
 ```
-InstallProofingTools.ps1 -LanguageID "nb-no" -Action Install
-InstallProofingTools.ps1 -LanguageID "nb-no" -Action Uninstall
+powershell.exe -executionpolicy bypass -file Install-Proofing-Tools.ps1 -LanguageID nb-no -Action Install
+powershell.exe -executionpolicy bypass -file Install-Proofing-Tools.ps1 -LanguageID nb-no -Action Uninstall
 ```
 It is also recommended that you have a requirement to check if Main Office is installed on the device as the install will fail if you try to install the proofing tools without Office installed. 
 This can be done using a registry key check or using the provided requirement script. 
 
 Detection of the proofing tools can be done either with the provided detection script, customized for each LanguageID or by having a registry key check. 
 
-For more details and instructions go to [MSEndpointMgr Blog](https://msendpointmgr.com)
+EXAMPLE Detection Rule: 
+Registry
+
+**HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\O365ProPlusRetail - nb-no.proof**
+
+
+For more details and instructions go to [MSEndpointMgr Blog](https://msendpointmgr.com/2022/10/23/installing-m365-apps-as-win32-app-in-intune/)
 
 
 
