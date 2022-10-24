@@ -1,4 +1,5 @@
 ---
+title: M365 Apps Intune scripted dynamic install using Office Deployment Toolkit
 contributors: @JankeSkanke, @sandytsang, @maurice-daly
 owner: @JankeSkanke
 date: 24/10/2022
