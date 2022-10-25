@@ -15,7 +15,13 @@
     Version history:
     1.0.0 - (2022-23-10) Script released
 #>
-
+#region parameters
+[CmdletBinding()]
+Param (
+    [Parameter(Mandatory=$false)]
+    [string]$XMLUrl
+)
+#endregion parameters
 #Region Functions
 function Write-LogEntry {
 	param (
@@ -127,8 +133,28 @@ try{
             Copy-Item -Path $SetupFilePath -Destination $SetupFolder -Force -ErrorAction Stop
             $OfficeCR2Version = [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$($SetupFolder)\setup.exe").FileVersion 
             Write-LogEntry -Value "Office C2R Setup is running version $OfficeCR2Version" -Severity 1
-            Copy-Item "$($PSScriptRoot)\configuration.xml" $SetupFolder -Force -ErrorAction Stop
-            Write-LogEntry -Value "Office Setup configuration filed copied" -Severity 1           
+            
+            #Check if XML URL is provided, if true, use that instead of trying local XML in package
+            if($XMLUrl){
+                Write-LogEntry -Value "Attempting to download configuration.xml from external URL" -Severity 1
+                try {
+                    #Attempt to download file from External Source
+                    Start-DownloadFile -URL $XMLURL -Path $SetupFolder -Name "configuration.xml"
+                    Write-LogEntry -Value "Downloading configuration.xml from external URL completed" -Severity 1
+                }
+                catch [System.Exception] {
+                    Write-LogEntry -Value "Downloading configuration.xml from external URL failed. Errormessage: $($_.Exception.Message)" -Severity 3
+                    Write-LogEntry -Value "M365 Apps setup failed" -Severity 3
+                    exit 1
+                }
+            }
+            else {
+                #Local configuration file only 
+                Write-LogEntry -Value "Running with local configuration.xml" -Severity 1
+                Copy-Item "$($PSScriptRoot)\configuration.xml" $SetupFolder -Force -ErrorAction Stop
+                Write-LogEntry -Value "Local Office Setup configuration filed copied" -Severity 1
+            }
+            #Starting Office setup with configuration file               
             Try{
                 #Running office installer
                 Write-LogEntry -Value "Starting M365 Apps Install with Win32App method" -Severity 1
