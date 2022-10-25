@@ -6,14 +6,21 @@
     Script to install Office as a Win32 App during Autopilot by downloading the latest Office Deployment Toolkit
     Running Setup.exe from downloaded files with provided config.xml file. 
 
+.EXAMPLE
+    Without external XML (Requires configuration.xml in the package)
+    powershell.exe -executionpolicy bypass -file InstallM365Apps.ps1
+    With external XML (Requires XML to be provided by URL)  
+    powershell.exe -executionpolicy bypass -file InstallM365Apps.ps1 -XMLURL "https://mydomain.com/xmlfile.xml"
+
 .NOTES
     Version:        1.0
     Author:         Jan Ketil Skanke
     Contact:     @JankeSkanke
     Creation Date:  01.07.2021
-    Updated:     (2022-23-10)
+    Updated:     (2022-25-10)
     Version history:
     1.0.0 - (2022-23-10) Script released
+    1.1.0 - (2022-25-10) Added support for External URL as parameter 
 #>
 #region parameters
 [CmdletBinding()]
