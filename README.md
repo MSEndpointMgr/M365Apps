@@ -10,10 +10,10 @@ Description: Deploying M365 with Intune dynamically as a Win32App
 
 # M365 Apps Intune scripted dynamic install using Office Deployment Toolkit 
 ## This solution covers installation of the following products 
-* [M365 Apps(Office)](#Main-Office-Package)
-* [Project](#Project-and-Visio)
-* [Visio](#Project-and-Visio)
-* [Proofing tools](#Proofing-tools)
+* [M365 Apps(Office)](#main-office-package-getting-configuration-from-external-url)
+* [Project](#project-and-visio)
+* [Visio](#project-and-visio)
+* [Proofing tools](#proofing-tools)
 
 Each product is made of the following components 
 * Install script (PowerShell)
