@@ -88,6 +88,8 @@ Each product is made of the following components
     * Uninstall Command: 
       * ```powershell.exe -executionpolicy bypass -file InstallM365Apps.ps1 ``` (Not working yet)
     * Install behaviour: System 
+    <img src="/.images/officeinstall.png" alt="Office Install XML" title="Office Install XML" style="display: inline-block; margin: 0 auto; max-width: 300px">
+
     * Requirements (probable 64 bit Windows something)
     * Detection: Use PowerShell detection Script M365AppsWin32DetectionScript.ps1 
   3. Assign 
@@ -119,6 +121,8 @@ Each product is made of the following components
 * TargetProduct is required for that to work. 
 * This example will shutdown running Office Apps for end users during install. 
 * Follow others steps from the main office package. 
+ <img src="/.images/visioinstall.png" alt="Office Install XML" title="Office Install XML" style="display: inline-block; margin: 0 auto; max-width: 300px">
+
 
 Project Install Command (Local):
 ```  
@@ -153,18 +157,27 @@ For proofing tool the included configuration.xml files are just "templates" as t
 powershell.exe -executionpolicy bypass -file Install-Proofing-Tools.ps1 -LanguageID nb-no -Action Install
 powershell.exe -executionpolicy bypass -file Install-Proofing-Tools.ps1 -LanguageID nb-no -Action Uninstall
 ```
+<img src="/.images/proofinginstall_1.png" alt="Office Install XML" title="Office Install XML" style="display: inline-block; margin: 0 auto; max-width: 300px">
+<img src="/.images/proofinginstall_2.png" alt="Office Install XML" title="Office Install XML" style="display: inline-block; margin: 0 auto; max-width: 300px">
+
 ***
+
 It is also recommended that you have a requirement to check if Main Office is installed on the device as the install will fail if you try to install the proofing tools without Office installed. 
 This can be done using a registry key check or using the provided requirement script 
+
+<img src="/.images/proofingrequire.png" alt="Office Install XML" title="Office Install XML" style="display: inline-block; margin: 0 auto; max-width: 300px">
+
 **ProofingRequirementScript.ps1**
+
 ***
+
 Detection of the proofing tools can be done either with the provided detection script, customized for each LanguageID or by having a registry key check. 
 
 EXAMPLE Detection Rule: 
 Registry
+<img src="/.images/proofingdetect.png" alt="Office Install XML" title="Office Install XML" style="display: inline-block; margin: 0 auto; max-width: 300px">
 
 **HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\O365ProPlusRetail - nb-no.proof**
-
 
 ***
 For more details and instructions go to [MSEndpointMgr Blog](https://msendpointmgr.com/2022/10/23/installing-m365-apps-as-win32-app-in-intune/)
