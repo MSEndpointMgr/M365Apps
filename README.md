@@ -51,10 +51,13 @@ Each product is made of the following components
       * ```powershell.exe -executionpolicy bypass -file InstallM365Apps.ps1 -XMLURL "https://mydomain.com/xmlfile.xml"```
     * Uninstall Command: 
       * ```powershell.exe -executionpolicy bypass -file InstallM365Apps.ps1 ``` (Not working yet)
+
+    <img src="/.images/officeinstall.png" alt="Office Install XML" title="Office Install XML" style="display: inline-block; margin: 0 auto; max-width: 300px">
+
     * Install behaviour: System 
     * Requirements (probable 64 bit Windows something)
     * Detection: Use PowerShell detection Script M365AppsWin32DetectionScript.ps1 
-  3. Assign 
+  1. Assign 
 
 ***
 ## Main Office Package (using configuration.xml inside package)
@@ -84,15 +87,13 @@ Each product is made of the following components
 2. Create a .Intunewim using the Win32 Content Prep tool [Prepare Win32 app content for upload](https://learn.microsoft.com/en-us/mem/intune/apps/apps-win32-prepare?WT.mc_id=EM-MVP-5002085) containing the configuration.xml and the InstallM365Apps.ps1 
 2. Upload .Intunewim and define the following parameters during install 
     * Install Command: 
-      * ```powershell.exe -executionpolicy bypass -file InstallM365Apps.ps1 -XMLURL "https://mydomain.com/xmlfile.xml"```
+      * ```powershell.exe -executionpolicy bypass -file InstallM365Apps.ps1```
     * Uninstall Command: 
       * ```powershell.exe -executionpolicy bypass -file InstallM365Apps.ps1 ``` (Not working yet)
     * Install behaviour: System 
-    <img src="/.images/officeinstall.png" alt="Office Install XML" title="Office Install XML" style="display: inline-block; margin: 0 auto; max-width: 300px">
-
     * Requirements (probable 64 bit Windows something)
     * Detection: Use PowerShell detection Script M365AppsWin32DetectionScript.ps1 
-  3. Assign 
+  1. Assign 
 
 ***
 ## Project and Visio
