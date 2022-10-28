@@ -181,6 +181,11 @@ Registry
 **HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\O365ProPlusRetail - nb-no.proof**
 
 ***
+Get URL from config.office.com : 
+
+<img src="/.images/configofficeurl.png" alt="Office Install XML" title="Office Install XML" style="display: inline-block; margin: 0 auto; max-width: 300px">
+
+
 For more details and instructions go to [MSEndpointMgr Blog](https://msendpointmgr.com/2022/10/23/installing-m365-apps-as-win32-app-in-intune/)
 
 This solution has been developed by @JankeSkanke with assistance from @sandytsang and @maurice-daly
