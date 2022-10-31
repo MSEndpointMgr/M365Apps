@@ -155,8 +155,8 @@ For proofing tool the included configuration.xml files are just "templates" as t
 ***
 **EXAMPLES for Proofing Tools**
 ```
-powershell.exe -executionpolicy bypass -file Install-Proofing-Tools.ps1 -LanguageID nb-no -Action Install
-powershell.exe -executionpolicy bypass -file Install-Proofing-Tools.ps1 -LanguageID nb-no -Action Uninstall
+powershell.exe -executionpolicy bypass -file InstallProofingTools.ps1 -LanguageID nb-no -Action Install
+powershell.exe -executionpolicy bypass -file InstallProofingTools.ps1 -LanguageID nb-no -Action Uninstall
 ```
 <img src="/.images/proofinginstall_1.png" alt="Office Install XML" title="Office Install XML" style="display: inline-block; margin: 0 auto; max-width: 300px">
 <img src="/.images/proofinginstall_2.png" alt="Office Install XML" title="Office Install XML" style="display: inline-block; margin: 0 auto; max-width: 300px">
