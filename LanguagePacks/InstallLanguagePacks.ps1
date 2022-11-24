@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS
-  Script to install Proofingtools as a Win32 App 
+  Script to install additional languagepacks as a Win32 App 
 
 .DESCRIPTION
-    Script to install Proofingtools as a Win32 App by downloading the latest Office Deployment Toolkit
+    Script to install additional languagepacks as a Win32 App by downloading the latest office setup.exe from evergreen url
     Running Setup.exe from downloaded files with provided config.xml file. 
 
 .PARAMETER LanguageID
@@ -12,24 +12,20 @@
     Supported actions are Install or Uninstall 
 
 .EXAMPLE 
-    InstallProofingTools.ps1 -LanguageID "nb-no" -Action Install
-    InstallProofingTools.ps1 -LanguageID "nb-no" -Action Uninstall
+    InstallLanguagePacks.ps1 -LanguageID "nb-no" -Action Install
+    InstallLanguagePacks.ps1 -LanguageID "nb-no" -Action Uninstall
 
 .NOTES
-    Version:          1.2
-    Author:           Jan Ketil Skanke
-    Creation Date:    01.07.2021
-    Purpose/Change:   Initial script development
-    Author:           Jan Ketil Skanke
-    Contributor       Sandy Zeng 
-    Contact:          @JankeSkanke @sandytsang
-    Updated:     2022-22-09
+  Version:          1.2
+  Author:           Jan Ketil Skanke
+  Creation Date:    23.11.2022
+  Purpose/Change:   Initial script development
+  Author:           Jan Ketil Skanke
+  Contributor       Sandy Zeng 
+  Contact:          @JankeSkanke @sandytsang
+  Updated:          2022-23-11
     Version history:
-        1.0 - (2020-10-11) Script created
-        1.0.1 - (2022-15-06) MultiLanguageSupport via parameter 
-        1.0.2 - (2022-20-06) Dynamically change configuration.xml based on LanguageID Parameter
-        1.1 - (2022-22-09) Adding support for uninstall, now equires 2 xml files - uninstall.xml and install.xml
-        1.2.0 - (2022-23-11) Moved from ODT download to Evergreen url for setup.exe 
+    1.2 - (2022-23-11) Script created - Matching M365 Apps solution version
 #>
 
 #region parameters
@@ -159,7 +155,7 @@ switch -Wildcard ($Action) {
 }
 
 #Initate Install
-Write-LogEntry -Value "Initiating Proofing tools $($LanguageID) $($Action) process" -Severity 1
+Write-LogEntry -Value "Initiating LanguagePack $($LanguageID) $($Action) process" -Severity 1
 #Attempt Cleanup of SetupFolder
 if (Test-Path "$($env:SystemRoot)\Temp\OfficeSetup"){
     Remove-Item -Path "$($env:SystemRoot)\Temp\OfficeSetup" -Recurse -Force -ErrorAction SilentlyContinue
@@ -168,48 +164,48 @@ if (Test-Path "$($env:SystemRoot)\Temp\OfficeSetup"){
 $SetupFolder = (New-Item -ItemType "directory" -Path "$($env:SystemRoot)\Temp" -Name OfficeSetup -Force).FullName
 
 try{
-    #Download latest Office setup.exe
+    #Download latest Office Deployment Toolkit
     $SetupEverGreenURL = "https://officecdn.microsoft.com/pr/wsus/setup.exe"
     Write-LogEntry -Value "Attempting to download latest Office setup executable" -Severity 1
     Start-DownloadFile -URL $SetupEverGreenURL -Path $SetupFolder -Name "setup.exe"
     
     try{
-         #Start install preparations
-         $SetupFilePath = Join-Path -Path $SetupFolder -ChildPath "setup.exe"
-         if (-Not (Test-Path $SetupFilePath)) {
-             Throw "Error: Setup file not found"
-         }
-         Write-LogEntry -Value "Setup file ready at $($SetupFilePath)" -Severity 1
+        #Start install preparations
+        $SetupFilePath = Join-Path -Path $SetupFolder -ChildPath "setup.exe"
+        if (-Not (Test-Path $SetupFilePath)) {
+            Throw "Error: Setup file not found"
+        }
+        Write-LogEntry -Value "Setup file ready at $($SetupFilePath)" -Severity 1
         try{
-            #Prepare Proofing tools installation or removal
-            $OfficeCR2Version = [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$($SetupFolder)\setup.exe").FileVersion 
+            #Prepare language pack installation or removal
+            $OfficeCR2Version = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($SetupFilePath).FileVersion 
             Write-LogEntry -Value "Office C2R Setup is running version $OfficeCR2Version" -Severity 1
             Invoke-XMLUpdate -LanguageID $LanguageID -Filename "$($PSScriptRoot)\$($Filename)" -Action $Action
             Copy-Item "$($PSScriptRoot)\$($Filename)" $SetupFolder -Force -ErrorAction Stop
-            Write-LogEntry -Value "Proofing tools $($LanguageID) configuration file copied" -Severity 1           
+            Write-LogEntry -Value "LanguagePack $($LanguageID) configuration file copied" -Severity 1           
             Try{
                 #Running office installer
-                Write-LogEntry -Value "Starting Proofing tools $($LanguageID) $($Action) with Win32App method" -Severity 1
+                Write-LogEntry -Value "Starting LanguagePack $($LanguageID) $($Action) with Win32App method" -Severity 1
                 $OfficeInstall = Start-Process $SetupFilePath -ArgumentList "/configure $($SetupFolder)\$($Filename)" -NoNewWindow -Wait -PassThru -ErrorAction Stop
               }
             catch [System.Exception]{
-                Write-LogEntry -Value  "Error running the Proofing tools $($LanguageID) $($Action). Errormessage: $($_.Exception.Message)" -Severity 3
+                Write-LogEntry -Value  "Error running the LanguagePack $($LanguageID) $($Action). Errormessage: $($_.Exception.Message)" -Severity 3
             }
         }
         catch [System.Exception]{
-            Write-LogEntry -Value  "Error preparing Proofing tools $($LanguageID) $($Action). Errormessage: $($_.Exception.Message)" -Severity 3
+            Write-LogEntry -Value  "Error preparing LanguagePack $($LanguageID) $($Action). Errormessage: $($_.Exception.Message)" -Severity 3
         }
     }
     catch [System.Exception]{
-        Write-LogEntry -Value  "Error extraction setup.exe from ODT Package. Errormessage: $($_.Exception.Message)" -Severity 3
+        Write-LogEntry -Value  "Error finding setup.exe Possible download error. Errormessage: $($_.Exception.Message)" -Severity 3
     }
     
 }
 catch [System.Exception]{
-    Write-LogEntry -Value  "Error downloading Office Deployment Toolkit. Errormessage: $($_.Exception.Message)" -Severity 3
+    Write-LogEntry -Value  "Error downloading setup.exe from evergreen url. Errormessage: $($_.Exception.Message)" -Severity 3
 }
 #Cleanup 
 if (Test-Path "$($env:SystemRoot)\Temp\OfficeSetup"){
     Remove-Item -Path "$($env:SystemRoot)\Temp\OfficeSetup" -Recurse -Force -ErrorAction SilentlyContinue
 }
-Write-LogEntry -Value "Proofing Tools $($LanguageID) $($Action) completed" -Severity 1
+Write-LogEntry -Value "LanguagePack $($LanguageID) $($Action) completed" -Severity 1

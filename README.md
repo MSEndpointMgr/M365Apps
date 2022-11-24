@@ -9,21 +9,25 @@ Description: Deploying M365 with Intune dynamically as a Win32App
   [![HitCount](https://hits.dwyl.com/msendpointmgr/m365apps.svg?style=flat)](http://hits.dwyl.com/msendpointmgr/m365apps)
 
 # M365 Apps Intune scripted dynamic install using Office Deployment Toolkit 
-## This solution covers installation of the following products 
+
+## This solution covers installation of the following products
+
 * [M365 Apps(Office)](#main-office-package-getting-configuration-from-external-url)
 * [Project](#project-and-visio)
 * [Visio](#project-and-visio)
 * [Proofing tools](#proofing-tools)
 
-Each product is made of the following components 
+Each product is made of the following components
+
 * Install script (PowerShell)
-* Local Configuration.xml or External URL 
+* Local Configuration.xml or External URL
 * Detection (script or documented)
 
-***    
+***
 ## Main Office Package (getting configuration from External URL)
 
 1. Define your config XML (Example below, can be generated at office.com)
+
 ```xml
 <Configuration ID="9aa11e20-2e29-451a-b0ba-f1ae3e89d18d">
   <Add OfficeClientEdition="64" Channel="MonthlyEnterprise" MigrateArch="TRUE">
@@ -45,21 +49,23 @@ Each product is made of the following components
   <Display Level="None" AcceptEULA="FALSE" />
 </Configuration>
 ```
+
 1. Create a .Intunewim using the Win32 Content Prep tool [Prepare Win32 app content for upload](https://learn.microsoft.com/en-us/mem/intune/apps/apps-win32-prepare?WT.mc_id=EM-MVP-5002085) containing the InstallM365Apps.ps1 
 2. Upload .Intunewim and define the following parameters during install 
-    * Install Command: 
+    * Install Command:
       * ```powershell.exe -executionpolicy bypass -file InstallM365Apps.ps1 -XMLURL "https://mydomain.com/xmlfile.xml"```
-    * Uninstall Command: 
-      * ```powershell.exe -executionpolicy bypass -file InstallM365Apps.ps1 ``` (Not working yet)
+    * Uninstall Command:
+      * ```powershell.exe -executionpolicy bypass -file InstallM365Apps.ps1``` (Not working yet)
 
     <img src="/.images/officeinstall.png" alt="Office Install XML" title="Office Install XML" style="display: inline-block; margin: 0 auto; max-width: 300px">
 
     * Install behaviour: System 
     * Requirements (probable 64 bit Windows something)
     * Detection: Use PowerShell detection Script M365AppsWin32DetectionScript.ps1 
-  1. Assign 
+  1. Assign
 
 ***
+
 ## Main Office Package (using configuration.xml inside package)
 
 1. Define your config XML (Example below, can be generated at office.com)
@@ -86,14 +92,14 @@ Each product is made of the following components
 ```
 2. Create a .Intunewim using the Win32 Content Prep tool [Prepare Win32 app content for upload](https://learn.microsoft.com/en-us/mem/intune/apps/apps-win32-prepare?WT.mc_id=EM-MVP-5002085) containing the configuration.xml and the InstallM365Apps.ps1 
 2. Upload .Intunewim and define the following parameters during install 
-    * Install Command: 
+    * Install Command:
       * ```powershell.exe -executionpolicy bypass -file InstallM365Apps.ps1```
-    * Uninstall Command: 
-      * ```powershell.exe -executionpolicy bypass -file InstallM365Apps.ps1 ``` (Not working yet)
-    * Install behaviour: System 
+    * Uninstall Command:
+      * ```powershell.exe -executionpolicy bypass -file InstallM365Apps.ps1``` (Not working yet)
+    * Install behaviour: System
     * Requirements (probable 64 bit Windows something)
-    * Detection: Use PowerShell detection Script M365AppsWin32DetectionScript.ps1 
-  1. Assign 
+    * Detection: Use PowerShell detection Script M365AppsWin32DetectionScript.ps1
+  1. Assign
 
 ***
 ## Project and Visio
@@ -124,47 +130,62 @@ Each product is made of the following components
 * Follow others steps from the main office package. 
  <img src="/.images/visioinstall.png" alt="Office Install XML" title="Office Install XML" style="display: inline-block; margin: 0 auto; max-width: 300px">
 
-
 Project Install Command (Local):
-```  
+
+```PowerShell
 powershell.exe -executionpolicy bypass -file InstallProject.ps1 
 ```
+
 Project Install Command (ExternalXML):
-```
+
+```PowerShell
 powershell.exe -executionpolicy bypass -file InstallProject.ps1 -XMLURL "https://mydomain.com/xmlfile.xml"
 ```
 
 Visio Install Command (Local):
 
-```  
+```PowerShell
 powershell.exe -executionpolicy bypass -file InstallVisio.ps1 
 ```
+
 Visio Install Command (ExternalXML):
-```
+
+```PowerShell
 powershell.exe -executionpolicy bypass -file InstallVisio.ps1 -XMLURL "https://mydomain.com/xmlfile.xml"
 ```
-***
-## Proofing tools
-
-We recommend installing only 1 language on the computers unless your requirements are very specific. But there might still be need for proofing tools for multiple languages. The main thinking here is to have all possible proofing tools in your environment as available to end user to install by their own choosing. 
-
-For proofing tool the included configuration.xml files are just "templates" as the script it self will rewrite the XML dynamically based on the parameters you send to the script. 
-
->There is no need to maintain this XML as long as Microsoft does not change the XML requirements. 
 
 ***
-**EXAMPLES for Proofing Tools**
+
+## Proofing tools or LanguagePacks
+
+We recommend installing only 1 language on the computers unless your requirements are very specific. But there might still be some users that would need a complete language pack or proofing tools for various languages. The main thinking here is to have all possible proofing tools in your environment as available to end user to install by their own choosing.
+
+For these 2 options the included configuration.xml files are just "templates" as the script it self will rewrite the XML dynamically based on the parameters you send to the script.
+
+>There is no need to maintain this XML as long as Microsoft does not change the XML requirements.
+
+***
+**EXAMPLES for LanguagePacks**
+
+```PowerShell
+powershell.exe -executionpolicy bypass -file InstallLanguagePacks.ps1 -LanguageID nb-no -Action Install
+powershell.exe -executionpolicy bypass -file InstallLanguagePacks.ps1 -LanguageID nb-no -Action Uninstall
 ```
+
+
+**EXAMPLES for Proofing Tools**
+
+```PowerShell
 powershell.exe -executionpolicy bypass -file InstallProofingTools.ps1 -LanguageID nb-no -Action Install
 powershell.exe -executionpolicy bypass -file InstallProofingTools.ps1 -LanguageID nb-no -Action Uninstall
 ```
+
 <img src="/.images/proofinginstall_1.png" alt="Office Install XML" title="Office Install XML" style="display: inline-block; margin: 0 auto; max-width: 300px">
 <img src="/.images/proofinginstall_2.png" alt="Office Install XML" title="Office Install XML" style="display: inline-block; margin: 0 auto; max-width: 300px">
 
 ***
 
-It is also recommended that you have a requirement to check if Main Office is installed on the device as the install will fail if you try to install the proofing tools without Office installed. 
-This can be done using a registry key check or using the provided requirement script 
+It is also recommended that you have a requirement to check if Main Office is installed on the device as the install will fail if you try to install the a language pack or proofing tools without Office installed. This can be done using a registry key check or using the provided requirement script.
 
 <img src="/.images/proofingrequire.png" alt="Office Install XML" title="Office Install XML" style="display: inline-block; margin: 0 auto; max-width: 300px">
 
@@ -172,9 +193,16 @@ This can be done using a registry key check or using the provided requirement sc
 
 ***
 
-Detection of the proofing tools can be done either with the provided detection script, customized for each LanguageID or by having a registry key check. 
+Detection of language packs is best using registry detection. Example Norwegian: 
 
-EXAMPLE Detection Rule: 
+* Key Path: **HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\O365ProPlusRetail - nb-no**
+* Value Name: **DisplayName**
+* String Comparison - Equals
+* Microsoft 365 Apps for enterprise - nb-no
+
+Detection of the proofing tools can be done either with the provided detection script, customized for each LanguageID or by using a registry key check(Recommended).
+
+EXAMPLE Detection Rule:
 Registry
 <img src="/.images/proofingdetect.png" alt="Office Install XML" title="Office Install XML" style="display: inline-block; margin: 0 auto; max-width: 300px">
 

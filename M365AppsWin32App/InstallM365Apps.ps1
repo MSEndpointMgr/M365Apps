@@ -3,7 +3,7 @@
   Script to install M365 Apps as a Win32 App
 
 .DESCRIPTION
-    Script to install Office as a Win32 App during Autopilot by downloading the latest Office Deployment Toolkit
+    Script to install Office as a Win32 App during Autopilot by downloading the latest Office setup exe from evergreen url
     Running Setup.exe from downloaded files with provided config.xml file. 
 
 .EXAMPLE
@@ -13,14 +13,15 @@
     powershell.exe -executionpolicy bypass -file InstallM365Apps.ps1 -XMLURL "https://mydomain.com/xmlfile.xml"
 
 .NOTES
-    Version:        1.1
+    Version:        1.2
     Author:         Jan Ketil Skanke
-    Contact:     @JankeSkanke
+    Contact:        @JankeSkanke
     Creation Date:  01.07.2021
-    Updated:     (2022-25-10)
+    Updated:        (2022-23-11)
     Version history:
-    1.0.0 - (2022-23-10) Script released 
-    1.1.0 - (2022-25-10) Added support for External URL as parameter 
+        1.0.0 - (2022-23-10) Script released 
+        1.1.0 - (2022-25-10) Added support for External URL as parameter 
+        1.2.0 - (2022-23-11) Moved from ODT download to Evergreen url for setup.exe 
 #>
 #region parameters
 [CmdletBinding()]
@@ -120,26 +121,20 @@ if (Test-Path "$($env:SystemRoot)\Temp\OfficeSetup") {
 $SetupFolder = (New-Item -ItemType "directory" -Path "$($env:SystemRoot)\Temp" -Name OfficeSetup -Force).FullName
 
 try {
-    #Download latest Office Deployment Toolkit
-    $ODTDownloadURL = "https://www.microsoft.com/en-us/download/confirmation.aspx?id=49117"
-    $WebResponseURL = ((Invoke-WebRequest -Uri $ODTDownloadURL -UseBasicParsing -ErrorAction Stop -Verbose:$false).links | Where-Object { $_.outerHTML -like "*click here to download manually*" }).href
-    $ODTFileName = Split-Path -Path $WebResponseURL -Leaf
-    $ODTFilePath = $SetupFolder
-    Write-LogEntry -Value "Attempting to download latest Office Deployment Toolkit executable" -Severity 1
-    Start-DownloadFile -URL $WebResponseURL -Path $ODTFilePath -Name $ODTFileName
+    #Download latest Office setup.exe
+    $SetupEverGreenURL = "https://officecdn.microsoft.com/pr/wsus/setup.exe"
+    Write-LogEntry -Value "Attempting to download latest Office setup executable" -Severity 1
+    Start-DownloadFile -URL $SetupEverGreenURL -Path $SetupFolder -Name "setup.exe"
     
     try {
-        #Extract setup.exe from ODT Package
-        $ODTExecutable = (Join-Path -Path $ODTFilePath -ChildPath $ODTFileName)
-        $ODTExtractionPath = (Join-Path -Path $ODTFilePath -ChildPath (Get-ChildItem -Path $ODTExecutable).VersionInfo.ProductVersion)
-        $ODTExtractionArguments = "/quiet /extract:$($ODTExtractionPath)"
-        Write-LogEntry -Value "Attempting to extract the setup.exe executable from Office Deployment Toolkit" -Severity 1
-        Start-Process -FilePath $ODTExecutable -ArgumentList $ODTExtractionArguments -NoNewWindow -Wait -ErrorAction Stop
-        $SetupFilePath = ($ODTExtractionPath | Get-ChildItem | Where-Object { $_.Name -eq "setup.exe" }).FullName
+        #Start install preparations
+        $SetupFilePath = Join-Path -Path $SetupFolder -ChildPath "setup.exe"
+        if (-Not (Test-Path $SetupFilePath)) {
+            Throw "Error: Setup file not found"
+        }
         Write-LogEntry -Value "Setup file ready at $($SetupFilePath)" -Severity 1
         try {
             #Prepare Office Installation
-            Copy-Item -Path $SetupFilePath -Destination $SetupFolder -Force -ErrorAction Stop
             $OfficeCR2Version = [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$($SetupFolder)\setup.exe").FileVersion 
             Write-LogEntry -Value "Office C2R Setup is running version $OfficeCR2Version" -Severity 1
             
@@ -167,7 +162,7 @@ try {
             Try {
                 #Running office installer
                 Write-LogEntry -Value "Starting M365 Apps Install with Win32App method" -Severity 1
-                $OfficeInstall = Start-Process "$($SetupFolder)\setup.exe" -ArgumentList "/configure $($SetupFolder)\configuration.xml" -Wait -PassThru -ErrorAction Stop
+                $OfficeInstall = Start-Process $SetupFilePath -ArgumentList "/configure $($SetupFolder)\configuration.xml" -Wait -PassThru -ErrorAction Stop
             }
             catch [System.Exception] {
                 Write-LogEntry -Value  "Error running the M365 Apps install. Errormessage: $($_.Exception.Message)" -Severity 3
@@ -184,5 +179,9 @@ try {
 }
 catch [System.Exception] {
     Write-LogEntry -Value  "Error downloading Office Deployment Toolkit. Errormessage: $($_.Exception.Message)" -Severity 3
+}
+#Cleanup 
+if (Test-Path "$($env:SystemRoot)\Temp\OfficeSetup"){
+    Remove-Item -Path "$($env:SystemRoot)\Temp\OfficeSetup" -Recurse -Force -ErrorAction SilentlyContinue
 }
 Write-LogEntry -Value "M365 Apps setup completed" -Severity 1

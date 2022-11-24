@@ -1,0 +1,10 @@
+<Configuration>
+  <Add OfficeClientEdition="64" Version="MatchInstalled">
+    <Product ID="LanguagePack">
+      <Language ID="" />
+    </Product>
+  </Add>
+  <Property Name="FORCEAPPSHUTDOWN" Value="TRUE" />
+  <Updates Enabled="TRUE" />
+  <Display Level="None" AcceptEULA="TRUE" />
+</Configuration>
