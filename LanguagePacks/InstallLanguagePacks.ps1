@@ -26,6 +26,7 @@
   Updated:          2022-23-11
     Version history:
     1.2 - (2022-23-11) Script created - Matching M365 Apps solution version
+    1.2.1 - (2022-01-12) Adding function to validate signing on downloaded setup.exe
 #>
 
 #region parameters
@@ -140,6 +141,49 @@ function Invoke-XMLUpdate  {
         $xmlDoc.Save($FileName);
     }
 }
+function Invoke-FileCertVerification {
+    param(
+        [parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$FilePath
+    )
+    # Get a X590Certificate2 certificate object for a file
+    $Cert = (Get-AuthenticodeSignature -FilePath $FilePath).SignerCertificate
+    $CertStatus = (Get-AuthenticodeSignature -FilePath $FilePath).Status
+    if ($Cert){
+        #Verify signed by Microsoft and Validity
+        if ($cert.Subject -match "O=Microsoft Corporation" -and $CertStatus -eq "Valid"){
+            #Verify Chain and check if Root is Microsoft
+            $chain = New-Object -TypeName System.Security.Cryptography.X509Certificates.X509Chain
+            $chain.Build($cert) | Out-Null
+            $RootCert = $chain.ChainElements | ForEach-Object {$_.Certificate}| Where-Object {$PSItem.Subject -match "CN=Microsoft Root"}
+            if (-not [string ]::IsNullOrEmpty($RootCert)){
+                #Verify root certificate exists in local Root Store
+                $TrustedRoot = Get-ChildItem -Path "Cert:\LocalMachine\Root" -Recurse | Where-Object { $PSItem.Thumbprint -eq $RootCert.Thumbprint}
+                if (-not [string]::IsNullOrEmpty($TrustedRoot)){
+                    Write-LogEntry -Value "Verified setupfile signed by : $($Cert.Issuer)" -Severity 1
+                    Return $True
+                }
+                else {
+                    Write-LogEntry -Value  "No trust found to root cert - aborting" -Severity 2
+                    Return $False
+                }
+            }
+            else {
+                Write-LogEntry -Value "Certificate chain not verified to Microsoft - aborting" -Severity 2 
+                Return $False
+            }
+        }
+        else {
+            Write-LogEntry -Value "Certificate not valid or not signed by Microsoft - aborting" -Severity 2 
+            Return $False
+        }  
+    }
+    else {
+        Write-LogEntry -Value "Setup file not signed - aborting" -Severity 2
+        Return $False
+    }
+}
 #Endregion Functions
 
 #Region Initialisations
@@ -175,22 +219,28 @@ try{
         if (-Not (Test-Path $SetupFilePath)) {
             Throw "Error: Setup file not found"
         }
-        Write-LogEntry -Value "Setup file ready at $($SetupFilePath)" -Severity 1
+        Write-LogEntry -Value "Setup file found at $($SetupFilePath)" -Severity 1
         try{
             #Prepare language pack installation or removal
             $OfficeCR2Version = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($SetupFilePath).FileVersion 
             Write-LogEntry -Value "Office C2R Setup is running version $OfficeCR2Version" -Severity 1
-            Invoke-XMLUpdate -LanguageID $LanguageID -Filename "$($PSScriptRoot)\$($Filename)" -Action $Action
-            Copy-Item "$($PSScriptRoot)\$($Filename)" $SetupFolder -Force -ErrorAction Stop
-            Write-LogEntry -Value "LanguagePack $($LanguageID) configuration file copied" -Severity 1           
-            Try{
-                #Running office installer
-                Write-LogEntry -Value "Starting LanguagePack $($LanguageID) $($Action) with Win32App method" -Severity 1
-                $OfficeInstall = Start-Process $SetupFilePath -ArgumentList "/configure $($SetupFolder)\$($Filename)" -NoNewWindow -Wait -PassThru -ErrorAction Stop
-              }
-            catch [System.Exception]{
-                Write-LogEntry -Value  "Error running the LanguagePack $($LanguageID) $($Action). Errormessage: $($_.Exception.Message)" -Severity 3
+            if (Invoke-FileCertVerification -FilePath $SetupFilePath){
+                Invoke-XMLUpdate -LanguageID $LanguageID -Filename "$($PSScriptRoot)\$($Filename)" -Action $Action
+                Copy-Item "$($PSScriptRoot)\$($Filename)" $SetupFolder -Force -ErrorAction Stop
+                Write-LogEntry -Value "LanguagePack $($LanguageID) configuration file copied" -Severity 1           
+                Try{
+                    #Running office installer
+                    Write-LogEntry -Value "Starting LanguagePack $($LanguageID) $($Action) with Win32App method" -Severity 1
+                    $OfficeInstall = Start-Process $SetupFilePath -ArgumentList "/configure $($SetupFolder)\$($Filename)" -NoNewWindow -Wait -PassThru -ErrorAction Stop
+                }
+                catch [System.Exception]{
+                    Write-LogEntry -Value  "Error running the LanguagePack $($LanguageID) $($Action). Errormessage: $($_.Exception.Message)" -Severity 3
+                }
             }
+            else {
+                Throw "Error: Unable to verify setup file signature"
+            }
+
         }
         catch [System.Exception]{
             Write-LogEntry -Value  "Error preparing LanguagePack $($LanguageID) $($Action). Errormessage: $($_.Exception.Message)" -Severity 3

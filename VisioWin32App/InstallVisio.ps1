@@ -21,7 +21,8 @@
     Version history:
         1.0.0 - (2022-23-10) Script released
         1.1.0 - (2022-25-10) Added support for External URL as parameter 
-        1.2.0 - (2022-23-11) Moved from ODT download to Evergreen url for setup.exe 
+        1.2.0 - (2022-23-11) Moved from ODT download to Evergreen url for setup.exe
+        1.2.1 - (2022-01-12) Adding function to validate signing on downloaded setup.exe
 #>
 #region parameters
 [CmdletBinding()]
@@ -64,10 +65,12 @@ function Write-LogEntry {
 		Out-File -InputObject $LogText -Append -NoClobber -Encoding Default -FilePath $LogFilePath -ErrorAction Stop
 		if ($Severity -eq 1) {
 			Write-Verbose -Message $Value
-		} elseif ($Severity -eq 3) {
+		} 
+        elseif ($Severity -eq 3) {
 			Write-Warning -Message $Value
 		}
-	} catch [System.Exception] {
+	} 
+    catch [System.Exception] {
 		Write-Warning -Message "Unable to append log entry to $LogFileName.log file. Error message at line $($_.InvocationInfo.ScriptLineNumber): $($_.Exception.Message)"
 	}
 }
@@ -210,7 +213,7 @@ try{
                 }    
             }
             else {
-                Throw "Error: Unable to verify setup file signature - aborting"
+                Throw "Error: Unable to verify setup file signature"
             }
         }
         catch [System.Exception]{
@@ -218,12 +221,12 @@ try{
         }
     }
     catch [System.Exception]{
-        Write-LogEntry -Value  "Error extraction setup.exe from ODT Package. Errormessage: $($_.Exception.Message)" -Severity 3
+        Write-LogEntry -Value  "Error finding office setup file. Errormessage: $($_.Exception.Message)" -Severity 3
     }
     
 }
 catch [System.Exception]{
-    Write-LogEntry -Value  "Error downloading Office Deployment Toolkit. Errormessage: $($_.Exception.Message)" -Severity 3
+    Write-LogEntry -Value  "Error downloading office setup file. Errormessage: $($_.Exception.Message)" -Severity 3
 }
 #Cleanup 
 if (Test-Path "$($env:SystemRoot)\Temp\OfficeSetup"){
