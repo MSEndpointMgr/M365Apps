@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.2 - 23.11.2023
+## 1.2 - 23.11.2022
 
 * Changed to Evergreen Url for setup.exe to avoid any issues with "scraping" the ODT download site and simplification. (Requested by [@aaronparker](https://github.com/aaronparker))
 * Added cleanup action to remove temporary setup files after installation
@@ -15,7 +15,7 @@ powershell.exe -executionpolicy bypass -file InstallLanguagePacks.ps1 -LanguageI
 
 ***
 
-## 1.1 - 28.10.2023
+## 1.1 - 28.10.2022
 
 * Added support for external XML configuration.xml for M365 Apps main package, Visio and Project as an option
 * No change for Proofing Tools
