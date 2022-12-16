@@ -1,5 +1,5 @@
 ---
-Version: 1.2 
+Version: 1.2.1 
 Title: M365 Apps Intune scripted dynamic install using Office Deployment Toolkit
 Authors: JankeSkanke, sandytsang
 Owner: JankeSkanke
