@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.1 - 16.12.2022
+
+ * Added verification of the setup.exe downloaded by verify signature on file and root trust to certificate
+   * Verify signed by Microsoft
+   * Verify Chain and check if Root is Microsoft
+   * Verify root certificate exists in local Certificate Root Store
+
 ## 1.2 - 23.11.2022
 
 * Changed to Evergreen Url for setup.exe to avoid any issues with "scraping" the ODT download site and simplification. (Requested by [@aaronparker](https://github.com/aaronparker))

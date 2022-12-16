@@ -22,6 +22,7 @@
         1.0.0 - (2022-23-10) Script released
         1.1.0 - (2022-25-10) Added support for External URL as parameter 
         1.2.0 - (2022-23-11) Moved from ODT download to Evergreen url for setup.exe 
+        1.2.1 - (2022-01-12) Adding function to validate signing on downloaded setup.exe
 #>
 #region parameters
 [CmdletBinding()]
@@ -105,6 +106,49 @@ function Start-DownloadFile {
         $WebClient.Dispose()
     }
 }
+function Invoke-FileCertVerification {
+    param(
+        [parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$FilePath
+    )
+    # Get a X590Certificate2 certificate object for a file
+    $Cert = (Get-AuthenticodeSignature -FilePath $FilePath).SignerCertificate
+    $CertStatus = (Get-AuthenticodeSignature -FilePath $FilePath).Status
+    if ($Cert){
+        #Verify signed by Microsoft and Validity
+        if ($cert.Subject -match "O=Microsoft Corporation" -and $CertStatus -eq "Valid"){
+            #Verify Chain and check if Root is Microsoft
+            $chain = New-Object -TypeName System.Security.Cryptography.X509Certificates.X509Chain
+            $chain.Build($cert) | Out-Null
+            $RootCert = $chain.ChainElements | ForEach-Object {$_.Certificate}| Where-Object {$PSItem.Subject -match "CN=Microsoft Root"}
+            if (-not [string ]::IsNullOrEmpty($RootCert)){
+                #Verify root certificate exists in local Root Store
+                $TrustedRoot = Get-ChildItem -Path "Cert:\LocalMachine\Root" -Recurse | Where-Object { $PSItem.Thumbprint -eq $RootCert.Thumbprint}
+                if (-not [string]::IsNullOrEmpty($TrustedRoot)){
+                    Write-LogEntry -Value "Verified setupfile signed by : $($Cert.Issuer)" -Severity 1
+                    Return $True
+                }
+                else {
+                    Write-LogEntry -Value  "No trust found to root cert - aborting" -Severity 2
+                    Return $False
+                }
+            }
+            else {
+                Write-LogEntry -Value "Certificate chain not verified to Microsoft - aborting" -Severity 2 
+                Return $False
+            }
+        }
+        else {
+            Write-LogEntry -Value "Certificate not valid or not signed by Microsoft - aborting" -Severity 2 
+            Return $False
+        }  
+    }
+    else {
+        Write-LogEntry -Value "Setup file not signed - aborting" -Severity 2
+        Return $False
+    }
+}
 #Endregion Functions
 
 #Region Initialisations
@@ -132,40 +176,44 @@ try {
          if (-Not (Test-Path $SetupFilePath)) {
              Throw "Error: Setup file not found"
          }
-         Write-LogEntry -Value "Setup file ready at $($SetupFilePath)" -Severity 1
+        Write-LogEntry -Value "Setup file ready at $($SetupFilePath)" -Severity 1
         try {
             #Prepare Office Installation
             $OfficeCR2Version = [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$($SetupFolder)\setup.exe").FileVersion 
             Write-LogEntry -Value "Office C2R Setup is running version $OfficeCR2Version" -Severity 1
-
-            #Check if XML URL is provided, if true, use that instead of trying local XML in package
-            if ($XMLUrl) {
-                Write-LogEntry -Value "Attempting to download configuration.xml from external URL" -Severity 1
-                try {
-                    #Attempt to download file from External Source
-                    Start-DownloadFile -URL $XMLURL -Path $SetupFolder -Name "configuration.xml"
-                    Write-LogEntry -Value "Downloading configuration.xml from external URL completed" -Severity 1
+            if (Invoke-FileCertVerification -FilePath $SetupFilePath){
+                #Check if XML URL is provided, if true, use that instead of trying local XML in package
+                if ($XMLUrl) {
+                    Write-LogEntry -Value "Attempting to download configuration.xml from external URL" -Severity 1
+                    try {
+                        #Attempt to download file from External Source
+                        Start-DownloadFile -URL $XMLURL -Path $SetupFolder -Name "configuration.xml"
+                        Write-LogEntry -Value "Downloading configuration.xml from external URL completed" -Severity 1
+                    }
+                    catch [System.Exception] {
+                        Write-LogEntry -Value "Downloading configuration.xml from external URL failed. Errormessage: $($_.Exception.Message)" -Severity 3
+                        Write-LogEntry -Value "Project setup failed" -Severity 3
+                        exit 1
+                    }
+                }
+                else {
+                    #Local configuration file only 
+                    Write-LogEntry -Value "Running with local configuration.xml" -Severity 1
+                    Copy-Item "$($PSScriptRoot)\configuration.xml" $SetupFolder -Force -ErrorAction Stop
+                    Write-LogEntry -Value "Local Project setup configuration filed copied" -Severity 1
+                }
+                #Starting Office setup with configuration file             
+                Try {
+                    #Running office installer
+                    Write-LogEntry -Value "Starting Project Install with Win32App method" -Severity 1
+                    $OfficeInstall = Start-Process $SetupFilePath -ArgumentList "/configure $($SetupFolder)\configuration.xml" -Wait -PassThru -ErrorAction Stop
                 }
                 catch [System.Exception] {
-                    Write-LogEntry -Value "Downloading configuration.xml from external URL failed. Errormessage: $($_.Exception.Message)" -Severity 3
-                    Write-LogEntry -Value "Project setup failed" -Severity 3
-                    exit 1
+                    Write-LogEntry -Value  "Error running the Project install. Errormessage: $($_.Exception.Message)" -Severity 3
                 }
             }
             else {
-                #Local configuration file only 
-                Write-LogEntry -Value "Running with local configuration.xml" -Severity 1
-                Copy-Item "$($PSScriptRoot)\configuration.xml" $SetupFolder -Force -ErrorAction Stop
-                Write-LogEntry -Value "Local Project setup configuration filed copied" -Severity 1
-            }
-            #Starting Office setup with configuration file             
-            Try {
-                #Running office installer
-                Write-LogEntry -Value "Starting Project Install with Win32App method" -Severity 1
-                $OfficeInstall = Start-Process $SetupFilePath -ArgumentList "/configure $($SetupFolder)\configuration.xml" -Wait -PassThru -ErrorAction Stop
-            }
-            catch [System.Exception] {
-                Write-LogEntry -Value  "Error running the Project install. Errormessage: $($_.Exception.Message)" -Severity 3
+                Throw "Error: Unable to verify setup file signature"
             }
         }
         catch [System.Exception] {
@@ -173,12 +221,12 @@ try {
         }
     }
     catch [System.Exception] {
-        Write-LogEntry -Value  "Error extraction setup.exe from ODT Package. Errormessage: $($_.Exception.Message)" -Severity 3
+        Write-LogEntry -Value  "Error finding office setup file. Errormessage: $($_.Exception.Message)" -Severity 3
     }
     
 }
 catch [System.Exception] {
-    Write-LogEntry -Value  "Error downloading Office Deployment Toolkit. Errormessage: $($_.Exception.Message)" -Severity 3
+    Write-LogEntry -Value "Error finding office setup file. Errormessage: $($_.Exception.Message)" -Severity 3
 }
 #Cleanup 
 if (Test-Path "$($env:SystemRoot)\Temp\OfficeSetup"){
