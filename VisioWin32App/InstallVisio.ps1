@@ -172,7 +172,7 @@ try{
     
     try{
         #Start install preparations
-        $SetupFilePath = Join-Path -Path $SetupFolder -ChildPath "test.msi"
+        $SetupFilePath = Join-Path -Path $SetupFolder -ChildPath "setup.exe"
         if (-Not (Test-Path $SetupFilePath)) {
             Throw "Error: Setup file not found"
         }
