@@ -101,6 +101,8 @@ Each product is made of the following components
     * Detection: Use PowerShell detection Script M365AppsWin32DetectionScript.ps1
   1. Assign
 
+> Note: If you are deploying other languages than EN-US, you might need to edit the script M365AppsWin32DetectionScript.ps1 to properly detect your installation.
+
 ***
 ## Project and Visio
 
