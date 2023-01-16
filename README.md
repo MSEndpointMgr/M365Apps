@@ -26,7 +26,7 @@ Each product is made of the following components
 ***
 ## Main Office Package (getting configuration from External URL)
 
-1. Define your config XML (Example below, can be generated at office.com)
+1. Define your config XML (Example below, can be generated at config.office.com)
 
 ```xml
 <Configuration ID="9aa11e20-2e29-451a-b0ba-f1ae3e89d18d">
