@@ -13,22 +13,24 @@
     powershell.exe -executionpolicy bypass -file InstallM365Apps.ps1 -XMLURL "https://mydomain.com/xmlfile.xml"
 
 .NOTES
-    Version:        1.2
+    Version:        1.3
     Author:         Jan Ketil Skanke
     Contact:        @JankeSkanke
     Creation Date:  01.07.2021
-    Updated:        (2022-23-11)
+    Updated:        (2023-06-06)
     Version history:
         1.0.0 - (2022-23-10) Script released 
         1.1.0 - (2022-25-10) Added support for External URL as parameter 
         1.2.0 - (2022-23-11) Moved from ODT download to Evergreen url for setup.exe 
-        1.2.1 - (2022-01-12) Adding function to validate signing on downloaded setup.exe
+        1.3.0 - (2023-06-06) Adding function to validate signing on downloaded setup.exe
 #>
 #region parameters
 [CmdletBinding()]
 Param (
     [Parameter(Mandatory = $false)]
-    [string]$XMLUrl
+    [string]$XMLUrl,
+    [Parameter(Mandatory = $false)]
+    [switch]$CleanOEM
 )
 #endregion parameters
 #Region Functions
@@ -178,48 +180,92 @@ try {
         }
         Write-LogEntry -Value "Setup file ready at $($SetupFilePath)" -Severity 1
         try {
-            #Prepare Office Installation
-            $OfficeCR2Version = [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$($SetupFolder)\setup.exe").FileVersion 
-            Write-LogEntry -Value "Office C2R Setup is running version $OfficeCR2Version" -Severity 1
-            if (Invoke-FileCertVerification -FilePath $SetupFilePath){
-            #Check if XML URL is provided, if true, use that instead of trying local XML in package
-                if ($XMLUrl) {
-                    Write-LogEntry -Value "Attempting to download configuration.xml from external URL" -Severity 1
-                    try {
-                        #Attempt to download file from External Source
-                        Start-DownloadFile -URL $XMLURL -Path $SetupFolder -Name "configuration.xml"
-                        Write-LogEntry -Value "Downloading configuration.xml from external URL completed" -Severity 1
+        # Initate OEM Cleanup 
+            if ($CleanOEM){
+                Write-LogEntry -Value "Test for OEM Cleanup" -Severity 1
+                $HasProvisioningCompleted = Get-CimInstance -Namespace "ROOT\CIMV2\mdm\dmmap" -ClassName "MDM_EnrollmentStatusTracking_Setup01" -Filter "InstanceID='Setup' AND ParentID='./Vendor/MSFT/EnrollmentStatusTracking'" | Select-Object -ExpandProperty HasProvisioningCompleted
+                if (-not $HasProvisioningCompleted){
+                    Write-LogEntry -Value "Provisioning is not completed - starting OEM Cleanup" -Severity 1
+                    # Generate Removal XML 
+                    $XmlFilePath = "$SetupFolder\remove.xml"
+                    $xmlContent = @"
+<Configuration>
+<Remove All="TRUE">
+</Remove>
+    <Property Name="FORCEAPPSHUTDOWN" Value="TRUE" />
+    <Display Level="None" AcceptEULA="TRUE" />
+</Configuration>
+"@
+                    $xmlContent | Out-File -FilePath $XmlFilePath -Encoding UTF8
+                    Write-LogEntry -Value "Starting OEM Office Removal using $XmlFilePath" -Severity 1
+
+                    if (Invoke-FileCertVerification -FilePath $SetupFilePath){
+                         #Starting Office removal with configuration file               
+                        Try {
+                            #Running office installer
+                            Write-LogEntry -Value "Starting M365 Apps OEM Cleanup" -Severity 1
+                            $OfficeRemoval = Start-Process $SetupFilePath -ArgumentList "/configure $($SetupFolder)\remove.xml" -Wait -PassThru -ErrorAction Stop
+                            Write-LogEntry -Value "M365 Apps OEM Cleanup completed" -Severity 1
+                        }
+                        catch [System.Exception] {
+                            Write-LogEntry -Value  "Error running the M365 Apps install. Errormessage: $($_.Exception.Message)" -Severity 3
+                        }
+                    }
+
+                }
+                else{
+                    Write-LogEntry -Value "OEM Cleanup should only be done during Autopilot Provisioning" -Severity 1
+                }
+            } 
+        # After OEM Cleanup install Office 
+            try {
+                #Prepare Office Installation
+                $OfficeCR2Version = [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$($SetupFolder)\setup.exe").FileVersion 
+                Write-LogEntry -Value "Office C2R Setup is running version $OfficeCR2Version" -Severity 1
+                if (Invoke-FileCertVerification -FilePath $SetupFilePath){
+                #Check if XML URL is provided, if true, use that instead of trying local XML in package
+                    if ($XMLUrl) {
+                        Write-LogEntry -Value "Attempting to download configuration.xml from external URL" -Severity 1
+                        try {
+                            #Attempt to download file from External Source
+                            Start-DownloadFile -URL $XMLURL -Path $SetupFolder -Name "configuration.xml"
+                            Write-LogEntry -Value "Downloading configuration.xml from external URL completed" -Severity 1
+                        }
+                        catch [System.Exception] {
+                            Write-LogEntry -Value "Downloading configuration.xml from external URL failed. Errormessage: $($_.Exception.Message)" -Severity 3
+                            Write-LogEntry -Value "M365 Apps setup failed" -Severity 3
+                            exit 1
+                        }
+                    }
+                    else {
+                        #Local configuration file only 
+                        Write-LogEntry -Value "Running with local configuration.xml" -Severity 1
+                        Copy-Item "$($PSScriptRoot)\configuration.xml" $SetupFolder -Force -ErrorAction Stop
+                        Write-LogEntry -Value "Local Office Setup configuration filed copied" -Severity 1
+                    }
+                    #Starting Office setup with configuration file               
+                    Try {
+                        #Running office installer
+                        Write-LogEntry -Value "Starting M365 Apps Install with Win32App method" -Severity 1
+                        $OfficeInstall = Start-Process $SetupFilePath -ArgumentList "/configure $($SetupFolder)\configuration.xml" -Wait -PassThru -ErrorAction Stop
                     }
                     catch [System.Exception] {
-                        Write-LogEntry -Value "Downloading configuration.xml from external URL failed. Errormessage: $($_.Exception.Message)" -Severity 3
-                        Write-LogEntry -Value "M365 Apps setup failed" -Severity 3
-                        exit 1
+                        Write-LogEntry -Value  "Error running the M365 Apps install. Errormessage: $($_.Exception.Message)" -Severity 3
                     }
                 }
                 else {
-                    #Local configuration file only 
-                    Write-LogEntry -Value "Running with local configuration.xml" -Severity 1
-                    Copy-Item "$($PSScriptRoot)\configuration.xml" $SetupFolder -Force -ErrorAction Stop
-                    Write-LogEntry -Value "Local Office Setup configuration filed copied" -Severity 1
-                }
-                #Starting Office setup with configuration file               
-                Try {
-                    #Running office installer
-                    Write-LogEntry -Value "Starting M365 Apps Install with Win32App method" -Severity 1
-                    $OfficeInstall = Start-Process $SetupFilePath -ArgumentList "/configure $($SetupFolder)\configuration.xml" -Wait -PassThru -ErrorAction Stop
-                }
-                catch [System.Exception] {
-                    Write-LogEntry -Value  "Error running the M365 Apps install. Errormessage: $($_.Exception.Message)" -Severity 3
+                    Throw "Error: Unable to verify setup file signature"
                 }
             }
-            else {
-                Throw "Error: Unable to verify setup file signature"
+            catch [System.Exception] {
+                Write-LogEntry -Value  "Error preparing office installation. Errormessage: $($_.Exception.Message)" -Severity 3
             }
         }
-        catch [System.Exception] {
-            Write-LogEntry -Value  "Error preparing office installation. Errormessage: $($_.Exception.Message)" -Severity 3
+        catch {
+            Write-LogEntry -Value  "Error during OEM Cleanup. Errormessage: $($_.Exception.Message)" -Severity 3
         }
-        
+          
+       
     }
     catch [System.Exception] {
         Write-LogEntry -Value  "Error finding office setup file. Errormessage: $($_.Exception.Message)" -Severity 3
