@@ -234,3 +234,4 @@ if (Test-Path "$($env:SystemRoot)\Temp\OfficeSetup"){
     Remove-Item -Path "$($env:SystemRoot)\Temp\OfficeSetup" -Recurse -Force -ErrorAction SilentlyContinue
 }
 Write-LogEntry -Value "M365 Apps setup completed" -Severity 1
+# Complete
