@@ -1,4 +1,5 @@
 #DetectionScript
+#For version 1.3 - enable OEM Cleanup with setting variable $CleanOEM = $true 
 function Write-LogEntry {
 	param (
 		[parameter(Mandatory = $true, HelpMessage = "Value added to the log file.")]
@@ -39,18 +40,103 @@ function Write-LogEntry {
 		Write-Warning -Message "Unable to append log entry to $LogFileName.log file. Error message at line $($_.InvocationInfo.ScriptLineNumber): $($_.Exception.Message)"
 	}
 }
+function Test-OfficeExists{
+    Write-LogEntry -Value "Check if M365 Apps exists on device" -Severity 1
+    $RegistryKeys = Get-ChildItem -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"
+    $M365Apps = "Microsoft 365 Apps"
+    $M365AppsCheck = $RegistryKeys | Get-ItemProperty | Where-Object { $_.DisplayName -match $M365Apps }
+    if ($M365AppsCheck) {
+        Write-LogEntry -Value "Microsoft 365 Apps detected with version $($M365AppsCheck[0].DisplayVersion)" -Severity 1
+        return $true
+       }else{
+        Write-LogEntry -Value "Microsoft 365 Apps not detected" -Severity 1
+        return $false
+    }
+}
+function Test-HasDeviceESPCompleted{
+    $KeyPath = "HKLM:\SOFTWARE\Microsoft\Windows\Autopilot\EnrollmentStatusTracking\Device\Setup\"
+    $Property = "HasProvisioningCompleted"
+    try {
+        $regKey = Get-ItemProperty -Path $KeyPath -ErrorAction Stop
+        $propertyExists = $regKey.PSObject.Properties.Name -contains $Property
 
+        if ($propertyExists) {
+           return $true
+        } else {
+            return $false
+        }
+    } catch {
+        return $false
+    }
+}
+function Test-IsAutopilotDevice{
+    $autopilotDiagPath = "HKLM:\software\microsoft\provisioning\Diagnostics\Autopilot"
+    $values = Get-ItemProperty "$autopilotDiagPath"
+    if (-not $values.CloudAssignedTenantId) {
+        return $false
+    }
+    else{
+        return $true
+    }
+}
+# CleanOEM 
+$CleanOEM = $true
+# Script 
 $LogFileName = "M365AppsSetup.log"
+$DetectionRegKeyName = "MSEndpointMgr" # Only used if OEM Cleanup is enabled 
+
 Write-LogEntry -Value "Start Office Install detection logic" -Severity 1
 $RegistryKeys = Get-ChildItem -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"
 $M365Apps = "Microsoft 365 Apps"
-# $M365AppsCheck = $RegistryKeys | Where-Object { $_.GetValue("DisplayName") -match $M365Apps } // Commented out as issues found
-$M365AppsCheck = $RegistryKeys | Get-ItemProperty | Where-Object { $_.DisplayName -match $M365Apps }
-if ($M365AppsCheck) {
-    Write-LogEntry -Value "Microsoft 365 Apps detected OK" -Severity 1
-    Write-Output "Microsoft 365 Apps Detected"
-	Exit 0
-   }else{
-    Write-LogEntry -Value "Microsoft 365 Apps not detected" -Severity 2
-    Exit 1
+
+if ($CleanOEM){
+    Write-LogEntry -Value "Testing for OEM Cleanup" -Severity 1
+    if (Test-OfficeExists){
+        #Check if Office with Clean OEM has already run
+        if (Test-Path -Path "HKLM:SOFTWARE\$($DetectionRegKeyName)\M365AppsInstall"){
+            # Path exist - cleanup should have already runned - Exit 0 
+            Write-LogEntry -Value "OEM Cleanup already performed - M365 Apps Detected OK" -Severity 1
+            Write-Output "Microsoft 365 Apps detected OK"
+		    Exit 0
+        }
+        else {
+            Write-LogEntry -Value "Microsoft 365 Apps found - checking if device is in Autopilot" -Severity 1
+            if (Test-IsAutopilotDevice){
+                # Device is an Autopilot device
+                Write-LogEntry -Value "Device is an Autopilot Device" -Severity 1
+                if (-not (Test-HasDeviceESPCompleted)){
+                    # Device is in Device ESP Phase 
+                    Write-LogEntry -Value "Device in ESP Device Phase - Initiate Installer with OEM Cleanup" -Severity 1
+                    Exit 1
+                }
+                else {
+                    Write-LogEntry -Value "Device is not in ESP Device Phase - Microsoft 365 Apps detected OK" -Severity 1
+                    Write-Output "Microsoft 365 Apps detected OK"
+                    Exit 0
+                } 
+            }
+            else {
+                Write-LogEntry -Value "Device is not an Autopilot Device - Microsoft 365 Apps detected OK" -Severity 1
+                Write-Output "Microsoft 365 Apps detected OK"
+                Exit 0
+            }   
+        }             
+    }
+    else{
+		Write-LogEntry -Value "Microsoft 365 Apps not detected" -Severity 2
+		Exit 1
+    }   
 }
+else {
+	if (Test-OfficeExists ){
+		Write-LogEntry -Value "Microsoft 365 Apps detected OK" -Severity 1
+		Write-Output "Microsoft 365 Apps detected OK"
+		Exit 0
+	}
+	else {
+		Write-LogEntry -Value "Microsoft 365 Apps noted detected" -Severity 2
+		Exit 1
+	}
+}
+
+
