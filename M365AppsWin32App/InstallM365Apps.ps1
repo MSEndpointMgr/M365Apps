@@ -12,6 +12,8 @@
     With external XML (Requires XML to be provided by URL)  
     powershell.exe -executionpolicy bypass -file InstallM365Apps.ps1 -XMLURL "https://mydomain.com/xmlfile.xml"
 
+    If you want to cleanup OEM Based Office during ESP phase: InstallM365Apps.ps1 -XMLURL "https://mydomain.com/xmlfile.xml" -CleanOEM
+
 .NOTES
     Version:        1.3
     Author:         Jan Ketil Skanke
@@ -22,7 +24,8 @@
         1.0.0 - (2022-23-10) Script released 
         1.1.0 - (2022-25-10) Added support for External URL as parameter 
         1.2.0 - (2022-23-11) Moved from ODT download to Evergreen url for setup.exe 
-        1.3.0 - (2023-06-06) Adding function to validate signing on downloaded setup.exe
+        1.2.1 - (2022-01-12) Adding function to validate signing on downloaded setup.exe
+        1.3.0 - (2023-06-06) Adding functionality to cleanup OEM version of Office. 
 #>
 #region parameters
 [CmdletBinding()]
@@ -151,10 +154,51 @@ function Invoke-FileCertVerification {
         Return $False
     }
 }
+function Test-OfficeExists{
+    Write-LogEntry -Value "Check if M365 Apps exists on device" -Severity 1
+    $RegistryKeys = Get-ChildItem -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"
+    $M365Apps = "Microsoft 365 Apps"
+    $M365AppsCheck = $RegistryKeys | Get-ItemProperty | Where-Object { $_.DisplayName -match $M365Apps }
+    if ($M365AppsCheck) {
+        Write-LogEntry -Value "Microsoft 365 Apps detected with version $($M365AppsCheck[0].DisplayVersion)" -Severity 1
+        return $true
+       }else{
+        Write-LogEntry -Value "Microsoft 365 Apps not detected" -Severity 1
+        return $false
+    }
+}
+function Test-HasDeviceESPCompleted{
+    $KeyPath = "HKLM:\SOFTWARE\Microsoft\Windows\Autopilot\EnrollmentStatusTracking\Device\Setup\"
+    $Property = "HasProvisioningCompleted"
+    try {
+        $regKey = Get-ItemProperty -Path $KeyPath -ErrorAction Stop
+        $propertyExists = $regKey.PSObject.Properties.Name -contains $Property
+
+        if ($propertyExists) {
+           return $true
+        } else {
+            return $false
+        }
+    } catch {
+        return $false
+    }
+}
+function Test-IsAutopilotDevice{
+    $autopilotDiagPath = "HKLM:\software\microsoft\provisioning\Diagnostics\Autopilot"
+    $values = Get-ItemProperty "$autopilotDiagPath"
+    if (-not $values.CloudAssignedTenantId) {
+        return $false
+    }
+    else{
+        return $true
+    }
+}
 #Endregion Functions
 
 #Region Initialisations
 $LogFileName = "M365AppsSetup.log"
+$DetectionRegKeyName = "MSEndpointMgr" #Change with company name if needed 
+
 #Endregion Initialisations
 
 #Initate Install
@@ -182,40 +226,65 @@ try {
         try {
         # Initate OEM Cleanup 
             if ($CleanOEM){
-                Write-LogEntry -Value "Test for OEM Cleanup" -Severity 1
-                $HasProvisioningCompleted = Get-CimInstance -Namespace "ROOT\CIMV2\mdm\dmmap" -ClassName "MDM_EnrollmentStatusTracking_Setup01" -Filter "InstanceID='Setup' AND ParentID='./Vendor/MSFT/EnrollmentStatusTracking'" | Select-Object -ExpandProperty HasProvisioningCompleted
-                if (-not $HasProvisioningCompleted){
-                    Write-LogEntry -Value "Provisioning is not completed - starting OEM Cleanup" -Severity 1
-                    # Generate Removal XML 
-                    $XmlFilePath = "$SetupFolder\remove.xml"
-                    $xmlContent = @"
-<Configuration>
-<Remove All="TRUE">
-</Remove>
-    <Property Name="FORCEAPPSHUTDOWN" Value="TRUE" />
-    <Display Level="None" AcceptEULA="TRUE" />
-</Configuration>
-"@
-                    $xmlContent | Out-File -FilePath $XmlFilePath -Encoding UTF8
-                    Write-LogEntry -Value "Starting OEM Office Removal using $XmlFilePath" -Severity 1
+                Write-LogEntry -Value "OEM Cleanup requested" -Severity 1
+                if (Test-OfficeExists){
+                    Write-LogEntry -Value "Office found - attempting cleanup" -Severity 1
+                    if (Test-IsAutopilotDevice){
+                        # Device is an Autopilot device
+                        Write-LogEntry -Value "Device is an Autopilot Device" -Severity 1
+                        if (-not (Test-HasDeviceESPCompleted)){
+                            # Device is in Device ESP Phase 
+                            Write-LogEntry -Value "Provisioning is not completed - starting OEM Cleanup" -Severity 1
+                            
+                            # Generate Removal XML 
+                            $XmlFilePath = "$SetupFolder\remove.xml"
+                            $xmlDocument = New-Object System.Xml.XmlDocument
+                            $rootElement = $xmlDocument.CreateElement("Configuration")
+                            $xmlDocument.AppendChild($rootElement)
+                            $removeElement = $xmlDocument.CreateElement("Remove")
+                            $removeElement.SetAttribute("All", "TRUE")
+                            $rootElement.AppendChild($removeElement)
+                            $removeElement.
+                            $propertyElement = $xmlDocument.CreateElement("Property")
+                            $propertyElement.SetAttribute("Name", "FORCEAPPSHUTDOWN")
+                            $propertyElement.SetAttribute("Value", "TRUE")
+                            $rootElement.AppendChild($propertyElement)
+                            $displayElement = $xmlDocument.CreateElement("Display")
+                            $displayElement.SetAttribute("Level", "None")
+                            $displayElement.SetAttribute("AcceptEULA", "TRUE")
+                            $rootElement.AppendChild($displayElement)
+                            $xmlDocument.Save($XmlFilePath)
+                            Write-LogEntry -Value "Starting OEM Office Removal using $XmlFilePath" -Severity 1
+        
+                            if (Invoke-FileCertVerification -FilePath $SetupFilePath){
+                                 #Starting Office removal with configuration file               
+                                Try {
+                                    #Running office installer
+                                    Write-LogEntry -Value "Starting M365 Apps OEM Cleanup" -Severity 1
+                                    $OfficeRemoval = Start-Process $SetupFilePath -ArgumentList "/configure $($SetupFolder)\remove.xml" -Wait -PassThru -ErrorAction Stop
+                                    Write-LogEntry -Value "M365 Apps OEM Cleanup completed" -Severity 1
+                                    #Adding custom detection keys
+                                    New-Item -Path "HKLM:SOFTWARE\$($DetectionRegKeyName)" -Name "M365AppsInstall" -Force | Out-Null
+                                    Set-ItemProperty -Path "HKLM:SOFTWARE\$($DetectionRegKeyName)\M365AppsInstall" -Name "OEMClean" -Value "Yes"
 
-                    if (Invoke-FileCertVerification -FilePath $SetupFilePath){
-                         #Starting Office removal with configuration file               
-                        Try {
-                            #Running office installer
-                            Write-LogEntry -Value "Starting M365 Apps OEM Cleanup" -Severity 1
-                            $OfficeRemoval = Start-Process $SetupFilePath -ArgumentList "/configure $($SetupFolder)\remove.xml" -Wait -PassThru -ErrorAction Stop
-                            Write-LogEntry -Value "M365 Apps OEM Cleanup completed" -Severity 1
+                                }
+                                catch [System.Exception] {
+                                    Write-LogEntry -Value  "Error running M365 Apps OEM Cleanup. Errormessage: $($_.Exception.Message)" -Severity 3
+                                }
+                            }
                         }
-                        catch [System.Exception] {
-                            Write-LogEntry -Value  "Error running the M365 Apps install. Errormessage: $($_.Exception.Message)" -Severity 3
-                        }
+                        else {
+                            Write-LogEntry -Value "OEM Cleanup should only be done during ESP Device Phase" -Severity 1
+                        } 
                     }
-
+                    else {
+                        Write-LogEntry -Value "Device is not an Autopilot Device - OEM Cleanup will not be attempted" -Severity 1
+                    }                       
                 }
                 else{
-                    Write-LogEntry -Value "OEM Cleanup should only be done during Autopilot Provisioning" -Severity 1
-                }
+                    Write-LogEntry -Value "Office not found - OEM Cleanup not needed" -Severity 1
+                } 
+                
             } 
         # After OEM Cleanup install Office 
             try {
