@@ -93,7 +93,7 @@ if ($CleanOEM){
     Write-LogEntry -Value "Testing for OEM Cleanup" -Severity 1
     if (Test-OfficeExists){
         #Check if Office with Clean OEM has already run
-        if (Test-Path -Path "HKLM:SOFTWARE\$($DetectionRegKeyName)\M365AppsInstall"){
+        if (Get-Item -Path "HKLM:SOFTWARE\$($DetectionRegKeyName)\M365AppsInstall\" -ErrorAction SilentlyContinue | Get-ItemProperty | Where-Object {$_.OemClean -eq "Yes"}){          
             # Path exist - cleanup should have already runned - Exit 0 
             Write-LogEntry -Value "OEM Cleanup already performed - M365 Apps Detected OK" -Severity 1
             Write-Output "Microsoft 365 Apps detected OK"
