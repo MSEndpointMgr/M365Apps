@@ -263,10 +263,6 @@ try {
                                     Write-LogEntry -Value "Starting M365 Apps OEM Cleanup" -Severity 1
                                     $OfficeRemoval = Start-Process $SetupFilePath -ArgumentList "/configure $($SetupFolder)\remove.xml" -Wait -PassThru -ErrorAction Stop
                                     Write-LogEntry -Value "M365 Apps OEM Cleanup completed" -Severity 1
-                                    #Adding custom detection keys
-                                    New-Item -Path "HKLM:SOFTWARE\$($DetectionRegKeyName)" -Name "M365AppsInstall" -Force | Out-Null
-                                    Set-ItemProperty -Path "HKLM:SOFTWARE\$($DetectionRegKeyName)\M365AppsInstall" -Name "OEMClean" -Value "Yes"
-
                                 }
                                 catch [System.Exception] {
                                     Write-LogEntry -Value  "Error running M365 Apps OEM Cleanup. Errormessage: $($_.Exception.Message)" -Severity 3
@@ -284,8 +280,11 @@ try {
                 else{
                     Write-LogEntry -Value "Office not found - OEM Cleanup not needed" -Severity 1
                 } 
-                
-            } 
+                #Adding custom detection keys
+                New-Item -Path "HKLM:SOFTWARE\$($DetectionRegKeyName)" -Name "M365AppsInstall" -Force | Out-Null
+                Set-ItemProperty -Path "HKLM:SOFTWARE\$($DetectionRegKeyName)\M365AppsInstall" -Name "OEMClean" -Value "Yes"
+            }
+    
         # After OEM Cleanup install Office 
             try {
                 #Prepare Office Installation
