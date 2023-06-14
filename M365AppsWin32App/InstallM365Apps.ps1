@@ -244,7 +244,6 @@ try {
                             $removeElement = $xmlDocument.CreateElement("Remove")
                             $removeElement.SetAttribute("All", "TRUE")
                             $rootElement.AppendChild($removeElement)
-                            $removeElement.
                             $propertyElement = $xmlDocument.CreateElement("Property")
                             $propertyElement.SetAttribute("Name", "FORCEAPPSHUTDOWN")
                             $propertyElement.SetAttribute("Value", "TRUE")
